@@ -186,15 +186,8 @@ INT32U  OS_CPU_SysTickClkFreq (void)
 void BSP_GPIO_Init(void)
 {
   GPIO_InitTypeDef  GPIO_InitStructure;
-  //GPIOA
-  /*
-  GPIO_InitStructure.GPIO_Pin = nCS;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(GPIOA, &GPIO_InitStructure);
-  */
-  //
-  GPIO_InitStructure.GPIO_Pin = LED;
+
+  GPIO_InitStructure.GPIO_Pin = LED|RX_STCP|RX_SHCP|RX_DS;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -205,23 +198,10 @@ void BSP_GPIO_Init(void)
   GPIO_Init(GPIOA, &GPIO_InitStructure);
 
   
-  //GPIOC 
- /* 
-  GPIO_InitStructure.GPIO_Pin   = PLL_DI|PLL_LE|PLL_CLK;
+  GPIO_InitStructure.GPIO_Pin = TX_STCP|TX_SHCP|TX_DS;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP;
-  GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-  GPIO_InitStructure.GPIO_Pin   = PLL_LOCK;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IPU;
-  GPIO_Init(GPIOC, &GPIO_InitStructure);
-  
-  GPIO_InitStructure.GPIO_Pin   = SDA|SCL|ON|LOCK;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_OD;
-  GPIO_Init(GPIOC, &GPIO_InitStructure);
-*/
+  GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
 /*
 *********************************************************************************************************
@@ -292,7 +272,7 @@ void BSP_RCC_Init(void)
     /*GPIOA clock enable */
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
     /*GPIOB clock enable */
-    //RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
     /*GPIOC clock enable */
     //RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
     /* Enable ADC1 clocks */

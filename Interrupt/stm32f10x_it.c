@@ -473,7 +473,54 @@ void TIM1_TRG_COM_IRQHandler(void)
 void TIM1_CC_IRQHandler(void)
 {
 }
-
+void switch_filter_rx(INT8U id)
+{
+    INT8U i;
+    
+    GPIO_ResetBits(GPIOA,RX_STCP);
+    GPIO_ResetBits(GPIOA,RX_SHCP);
+    GPIO_ResetBits(GPIOA,RX_DS);
+    for(i=0;i<8;i++){
+        if(id&0x80)
+            GPIO_SetBits(GPIOA,RX_DS);
+        else
+            GPIO_ResetBits(GPIOA,RX_DS);
+        OSTimeDlyHMSM(0, 0, 0, 1);
+        GPIO_SetBits(GPIOA,RX_SHCP);
+        OSTimeDlyHMSM(0, 0, 0, 1);
+        GPIO_ResetBits(GPIOA,RX_SHCP);
+        OSTimeDlyHMSM(0, 0, 0, 1);
+        id=id<<1;
+    }
+    GPIO_SetBits(GPIOA,RX_STCP);
+    OSTimeDlyHMSM(0, 0, 0, 1);
+    GPIO_ResetBits(GPIOA,RX_STCP);
+    OSTimeDlyHMSM(0, 0, 0, 1);
+}
+void switch_filter_tx(INT16U id)
+{
+    INT8U i;
+    
+    GPIO_ResetBits(GPIOB,TX_STCP);
+    GPIO_ResetBits(GPIOB,TX_SHCP);
+    GPIO_ResetBits(GPIOB,TX_DS);
+    for(i=0;i<9;i++){
+        if(id&0x8000)
+            GPIO_SetBits(GPIOB,TX_DS);
+        else
+            GPIO_ResetBits(GPIOB,TX_DS);
+        OSTimeDlyHMSM(0, 0, 0, 1);
+        GPIO_SetBits(GPIOB,TX_SHCP);
+        OSTimeDlyHMSM(0, 0, 0, 1);
+        GPIO_ResetBits(GPIOB,TX_SHCP);
+        OSTimeDlyHMSM(0, 0, 0, 1);
+        id=id<<1;
+    }
+    GPIO_SetBits(GPIOB,TX_STCP);
+    OSTimeDlyHMSM(0, 0, 0, 1);
+    GPIO_ResetBits(GPIOB,TX_STCP);
+    OSTimeDlyHMSM(0, 0, 0, 1);
+}
 /*******************************************************************************
 * Function Name  : TIM2_IRQHandler
 * Description    : This function handles TIM2 global interrupt request.
@@ -485,46 +532,82 @@ void TIM2_IRQHandler(void)
 {
     INT32U reg;
     INT16U i;
-    float reg5_rx=0;
+    float Divide_rx;
+    float Divide_tx;
     INT8U reg231;
     INT8U reg233;
     INT8U reg234;
     INT8U reg235;
-    INT32U f0;
-    float f1;
-    INT32U nf;
-    double freq;
+    INT8U reg271;
+    INT8U reg273;
+    INT8U reg274;
+    INT8U reg275;
+    INT32U f0_rx;
+    float f1_rx;
+    INT32U f0_tx;
+    float f1_tx;
+    INT32U nf1;
+    INT32U nf2;
+    static double freq_rx;
+    static double freq_tx;
     TIM_Cmd(TIM2, DISABLE);
     TIM_ClearFlag(TIM2,TIM_FLAG_Update);
     DMA_Cmd(DMA1_Channel2, DISABLE);
     
     for(i=0;i<BufferSize-3;i+=3){
         reg=(INT32U)SPI1_Buffer_Rx[0+i]<<16|(INT32U)SPI1_Buffer_Rx[1+i]<<8|(INT32U)SPI1_Buffer_Rx[2+i];
+       
         if(((reg>>8)&0x000FFF)==0x005){
             switch(reg&0x0000000F){
                 case 0:
-                  reg5_rx=2.0;
+                  Divide_rx=2.0;
                   break;
                 case 1:
-                  reg5_rx=4.0;
+                  Divide_rx=4.0;
                   break;
                 case 2:
-                  reg5_rx=8.0;
+                  Divide_rx=8.0;
                   break;
                 case 3:
-                  reg5_rx=16.0;
+                  Divide_rx=16.0;
                   break;
                 case 4:
-                  reg5_rx=32.0;
+                  Divide_rx=32.0;
                   break;
                 case 5:
-                  reg5_rx=64.0;
+                  Divide_rx=64.0;
                   break;
                 case 6:
-                  reg5_rx=128.0;
+                  Divide_rx=128.0;
                   break;              
             }
+        
+
+            switch(reg&0x000000F0){
+                case 0x00:
+                  Divide_tx=2.0;
+                  break;
+                case 0x10:
+                  Divide_tx=4.0;
+                  break;
+                case 0x20:
+                  Divide_tx=8.0;
+                  break;
+                case 0x30:
+                  Divide_tx=16.0;
+                  break;
+                case 0x40:
+                  Divide_tx=32.0;
+                  break;
+                case 0x50:
+                  Divide_tx=64.0;
+                  break;
+                case 0x60:
+                  Divide_tx=128.0;
+                  break;              
+            }            
         }
+       
         if(((reg>>8)&0x000FFF)==0x231){
             reg231=reg&0x000000FF;
         }
@@ -537,15 +620,70 @@ void TIM2_IRQHandler(void)
         if(((reg>>8)&0x000FFF)==0x235){
             reg235=reg&0x0000007F;
         }  
-        if(reg5_rx>0){
-            f0=(INT32U)floor(reg231/reg5_rx*80);
-            nf=(reg235<<16)+(reg234<<8)+reg233;
-            f1=nf/8388593.0/reg5_rx*80.0;
-            freq=f0+f1;
-            break;
+        if(((reg>>8)&0x000FFF)==0x271){
+            reg271=reg&0x000000FF;
         }
+        if(((reg>>8)&0x000FFF)==0x273){
+            reg273=reg&0x000000FF;
+        }    
+        if(((reg>>8)&0x000FFF)==0x274){
+            reg274=reg&0x000000FF;
+        }   
+        if(((reg>>8)&0x000FFF)==0x275){
+            reg275=reg&0x0000007F;
+        }    
+
+        if(Divide_rx>1){
+            f0_rx=(INT32U)floor(reg231/Divide_rx*80);
+            nf1=(reg235<<16)+(reg234<<8)+reg233;
+            f1_rx=nf1/8388593.0/Divide_rx*80.0;
+            freq_rx=f0_rx+f1_rx;
+        }
+        
+        if(Divide_tx>1){
+            f0_tx=(INT32U)floor(reg271/Divide_tx*80);
+            nf2=(reg275<<16)+(reg274<<8)+reg273;
+            f1_tx=nf2/8388593.0/Divide_tx*80.0;
+            freq_tx=f0_tx+f1_tx;
+            break;
+        }        
+      
     }
     
+    if(freq_rx<450.0)
+        switch_filter_rx(0x01);
+    else if(freq_rx<700.0)
+        switch_filter_rx(0x02);
+    else if(freq_rx<1200.0)
+        switch_filter_rx(0x04);
+    else if(freq_rx<1800.0)
+        switch_filter_rx(0x08);
+    else if(freq_rx<2350.0)
+        switch_filter_rx(0x10); 
+    else if(freq_rx<2600.0)
+        switch_filter_rx(0x20);  
+    else 
+        switch_filter_rx(0x40);
+    
+    if(freq_tx<117.70)
+        switch_filter_tx(0x0080);
+    else if(freq_tx<178.2)
+        switch_filter_tx(0x0100);
+    else if(freq_tx<284.3)
+        switch_filter_tx(0x0200);
+    else if(freq_tx<453.7)
+        switch_filter_tx(0x0400);
+    else if(freq_tx<723.8)
+        switch_filter_tx(0x0800); 
+    else if(freq_tx<1154.90)
+        switch_filter_tx(0x1000); 
+    else if(freq_tx<1842.6)
+        switch_filter_tx(0x2000);
+    else if(freq_tx<2940.0)
+        switch_filter_tx(0x4000);     
+    else 
+        switch_filter_tx(0x8000);    
+        
     DMA1_Channel2->CNDTR=BufferSize;
     DMA_Cmd(DMA1_Channel2, ENABLE);
 }
