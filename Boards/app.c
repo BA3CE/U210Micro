@@ -145,7 +145,7 @@ static  void  App_TaskStart (void *p_arg)
 
 #endif
           
-	//GPIO_SetBits(GPIOA, CS);
+	
     
     while (DEF_TRUE){                                          /* Task body, always written as an infinite loop.            */       
         GPIO_SetBits(GPIOA, LED);

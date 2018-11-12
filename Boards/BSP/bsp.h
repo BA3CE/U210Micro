@@ -85,14 +85,19 @@
 #define RX_STCP		DEF_BIT_01
 #define RX_SHCP		DEF_BIT_02
 #define RX_DS       DEF_BIT_03	
-#define nCS         DEF_BIT_04	
-#define SCK			DEF_BIT_05
-#define MOSI       	DEF_BIT_07	
+#define nCS1        DEF_BIT_04	
+#define SCK1		DEF_BIT_05
+#define MOSI1       DEF_BIT_07	
 
 /* ---------------------- GPIOB Pins ---------------------- */
 #define TX_DS		DEF_BIT_00
 #define TX_STCP		DEF_BIT_01
+#define OP_STM32	DEF_BIT_08
 #define TX_SHCP		DEF_BIT_10
+#define nCS0        DEF_BIT_12
+#define SCK0        DEF_BIT_13
+#define nIRQ        DEF_BIT_14
+#define MOSI0       DEF_BIT_15
 
 /* ---------------------- GPIOC Pins ---------------------- */
  

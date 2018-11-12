@@ -9,7 +9,7 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [DebugChecksum]
-Checksum=766947431
+Checksum=-1832005644
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -39,7 +39,8 @@ Category=_ 0
 LoggingEnabled=_ 0
 LogFile=_ ""
 [Aliases]
-Count=0
+A0=_ "D:\U210Micro-master\Boards\app.c" ""
+Count=1
 SuppressDialog=0
 [CallStackLog]
 Enabled=0

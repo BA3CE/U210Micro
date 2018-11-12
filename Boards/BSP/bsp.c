@@ -83,6 +83,7 @@ void  BSP_EXT_Init(void);
 void  BSP_SPI_Init(void);
 void  BSP_DMA_Init(void);
 void  BSP_TIM2_Init(void);
+void  BSP_TIM3_Init(void);
 /*
 *********************************************************************************************************
 *                                     LOCAL CONFIGURATION ERRORS
@@ -122,6 +123,7 @@ void  BSP_Init (void)
     BSP_EXT_Init();
 	BSP_TIM2_Init();
 	BSP_SPI_Init();
+    BSP_TIM3_Init();
 }
 
 /*
@@ -192,16 +194,28 @@ void BSP_GPIO_Init(void)
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-  GPIO_InitStructure.GPIO_Pin = MOSI|SCK|nCS;
+  GPIO_InitStructure.GPIO_Pin = MOSI1|SCK1|nCS1;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(GPIOA, &GPIO_InitStructure);
 
   
-  GPIO_InitStructure.GPIO_Pin = TX_STCP|TX_SHCP|TX_DS;
+  GPIO_InitStructure.GPIO_Pin = TX_STCP|TX_SHCP|TX_DS|nCS0|MOSI0|SCK0;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(GPIOB, &GPIO_InitStructure);
+  
+  GPIO_InitStructure.GPIO_Pin = nIRQ;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(GPIOB, &GPIO_InitStructure);
+  
+  GPIO_InitStructure.GPIO_Pin = OP_STM32;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(GPIOB, &GPIO_InitStructure);
+  
+  GPIO_SetBits(GPIOB, nCS0);
 }
 /*
 *********************************************************************************************************
@@ -283,6 +297,8 @@ void BSP_RCC_Init(void)
 
     /*TIM2 clock enable */
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+    
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
 	
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1,ENABLE);
   }
@@ -304,19 +320,18 @@ void BSP_SPI_Init(void)
     
 
     SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);
-    //SPI_I2S_ITConfig(SPI1, SPI_I2S_IT_RXNE, ENABLE);
+
     
     SPI_Cmd(SPI1, ENABLE); 
     
-    //BSP_IntVectSet(BSP_INT_ID_SPI1, SPI1_IRQHandler);
-  	//BSP_IntEn(BSP_INT_ID_SPI1);
+
 }
 void BSP_EXT_Init(void)
 {
   	EXTI_InitTypeDef EXTI_InitStructure;
 
   //设置io口  
-  /* Connect EXTI Line to W5100 GPIO Pin */
+  
 	GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource4);  //PA4 为EXTI nCS
 
   /* Configure EXTI Line to generate an interrupt on rising edge */  
@@ -330,6 +345,21 @@ void BSP_EXT_Init(void)
 	
 	BSP_IntVectSet(BSP_INT_ID_EXTI4, EXTI4_IRQHandler);
   	BSP_IntEn(BSP_INT_ID_EXTI4);
+    
+    
+	GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource14);  //PB14 为EXTI nIRQ
+
+  /* Configure EXTI Line to generate an interrupt on rising edge */  
+	EXTI_InitStructure.EXTI_Line = EXTI_Line14;
+	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+	EXTI_Init(&EXTI_InitStructure);
+	
+	EXTI_ClearITPendingBit(BSP_INT_ID_EXTI15_10);
+	
+	BSP_IntVectSet(BSP_INT_ID_EXTI15_10, EXTI15_10_IRQHandler);
+  	BSP_IntEn(BSP_INT_ID_EXTI15_10);    
 }
 
 #define SPI1_DR_Address  (&(SPI1->DR)) 
@@ -383,6 +413,30 @@ void BSP_TIM2_Init(void)
 	//设置中断向量
   	BSP_IntVectSet(BSP_INT_ID_TIM2, TIM2_IRQHandler);
   	BSP_IntEn(BSP_INT_ID_TIM2);	
+
+}
+
+void BSP_TIM3_Init(void)
+{
+  	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+
+	//((1+TIM_Prescaler )/72M)*(1+TIM_Period )=((1+35999)/72M)*(1+9)=5毫秒
+	
+	
+	TIM_TimeBaseStructure.TIM_Period = 9; //设置自动装载寄存器       
+	TIM_TimeBaseStructure.TIM_Prescaler = 35999; //分频计数    
+	TIM_TimeBaseStructure.TIM_ClockDivision = 0;   
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up; //选择向上计数
+	TIM_TimeBaseInit(TIM3, &TIM_TimeBaseStructure);
+	
+	TIM_Cmd(TIM3, DISABLE);
+	
+	TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
+    TIM_ClearFlag(TIM2, TIM_FLAG_Update);
+	
+	//设置中断向量
+  	BSP_IntVectSet(BSP_INT_ID_TIM3, TIM3_IRQHandler);
+  	BSP_IntEn(BSP_INT_ID_TIM3);	
 
 }
 

@@ -23,6 +23,12 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
+#define MOSI_H GPIO_SetBits(GPIOB, MOSI0)
+#define MOSI_L GPIO_ResetBits(GPIOB, MOSI0)
+#define SCLK_H GPIO_SetBits(GPIOB, SCK0)
+#define SCLK_L GPIO_ResetBits(GPIOB, SCK0)
+#define CS_H GPIO_SetBits(GPIOB, nCS0)
+#define CS_L GPIO_ResetBits(GPIOB, nCS0)
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
@@ -30,6 +36,32 @@
 
 
 extern vu8 SPI1_Buffer_Rx[];
+
+void delay_us(unsigned int t)
+{
+    __no_operation();
+}
+void Send_Data(unsigned long int datanumber)   // x为后8位，y为前八位
+{
+	unsigned long int temp;
+    unsigned int i;
+  	temp=0x800000;
+	CS_L;
+	SCLK_L; 
+	for(i = 0; i < 24; i++){		
+		if(datanumber & temp)
+			MOSI_H;
+		else
+			MOSI_L;
+		temp >>= 1;
+		SCLK_H;
+		delay_us(20);
+		SCLK_L;
+		delay_us(20);
+	}
+	delay_us(20);
+	CS_H;	  
+}
 
 /*******************************************************************************
 * Function Name  : NMIException
@@ -548,11 +580,13 @@ void TIM2_IRQHandler(void)
     float f1_tx;
     INT32U nf1;
     INT32U nf2;
-    static double freq_rx;
-    static double freq_tx;
+    double freq_rx;
+    double freq_tx;
+    
     TIM_Cmd(TIM2, DISABLE);
     TIM_ClearFlag(TIM2,TIM_FLAG_Update);
     DMA_Cmd(DMA1_Channel2, DISABLE);
+
     
     for(i=0;i<BufferSize-3;i+=3){
         reg=(INT32U)SPI1_Buffer_Rx[0+i]<<16|(INT32U)SPI1_Buffer_Rx[1+i]<<8|(INT32U)SPI1_Buffer_Rx[2+i];
@@ -649,41 +683,44 @@ void TIM2_IRQHandler(void)
         }        
       
     }
-    
-    if(freq_rx<450.0)
-        switch_filter_rx(0x01);
-    else if(freq_rx<700.0)
-        switch_filter_rx(0x02);
-    else if(freq_rx<1200.0)
-        switch_filter_rx(0x04);
-    else if(freq_rx<1800.0)
-        switch_filter_rx(0x08);
-    else if(freq_rx<2350.0)
-        switch_filter_rx(0x10); 
-    else if(freq_rx<2600.0)
-        switch_filter_rx(0x20);  
-    else 
-        switch_filter_rx(0x40);
-    
-    if(freq_tx<117.70)
-        switch_filter_tx(0x0080);
-    else if(freq_tx<178.2)
-        switch_filter_tx(0x0100);
-    else if(freq_tx<284.3)
-        switch_filter_tx(0x0200);
-    else if(freq_tx<453.7)
-        switch_filter_tx(0x0400);
-    else if(freq_tx<723.8)
-        switch_filter_tx(0x0800); 
-    else if(freq_tx<1154.90)
-        switch_filter_tx(0x1000); 
-    else if(freq_tx<1842.6)
-        switch_filter_tx(0x2000);
-    else if(freq_tx<2940.0)
-        switch_filter_tx(0x4000);     
-    else 
-        switch_filter_tx(0x8000);    
+    if(GPIO_ReadInputDataBit(GPIOB,OP_STM32)==0){
+        if(freq_rx<450.0)
+            switch_filter_rx(0x01);
+        else if(freq_rx<700.0)
+            switch_filter_rx(0x02);
+        else if(freq_rx<1200.0)
+            switch_filter_rx(0x04);
+        else if(freq_rx<1800.0)
+            switch_filter_rx(0x08);
+        else if(freq_rx<2350.0)
+            switch_filter_rx(0x10); 
+        else if(freq_rx<2600.0)
+            switch_filter_rx(0x20);  
+        else 
+            switch_filter_rx(0x40);
         
+        if(freq_tx<117.70)
+            switch_filter_tx(0x0080);
+        else if(freq_tx<178.2)
+            switch_filter_tx(0x0100);
+        else if(freq_tx<284.3)
+            switch_filter_tx(0x0200);
+        else if(freq_tx<453.7)
+            switch_filter_tx(0x0400);
+        else if(freq_tx<723.8)
+            switch_filter_tx(0x0800); 
+        else if(freq_tx<1154.90)
+            switch_filter_tx(0x1000); 
+        else if(freq_tx<1842.6)
+            switch_filter_tx(0x2000);
+        else if(freq_tx<2940.0)
+            switch_filter_tx(0x4000);     
+        else 
+            switch_filter_tx(0x8000);  
+    
+    }
+   
+
     DMA1_Channel2->CNDTR=BufferSize;
     DMA_Cmd(DMA1_Channel2, ENABLE);
 }
@@ -697,7 +734,10 @@ void TIM2_IRQHandler(void)
 *******************************************************************************/
 void TIM3_IRQHandler(void)
 {
-
+    TIM_Cmd(TIM3, DISABLE);
+    TIM_ClearFlag(TIM3,TIM_FLAG_Update);
+    if(GPIO_ReadInputDataBit(GPIOB,OP_STM32)==1)
+        Send_Data(0x800403); //RX1A,RX2A,RX3A，TX1A，TX2A
 }
 
 /*******************************************************************************
@@ -826,6 +866,12 @@ void USART3_IRQHandler(void)
 *******************************************************************************/
 void EXTI15_10_IRQHandler(void)
 {
+    if(EXTI_GetITStatus(EXTI_Line14)!=RESET){
+	  	EXTI_ClearITPendingBit(EXTI_Line14);
+        TIM_Cmd(TIM3, DISABLE);
+        TIM_SetCounter(TIM3,0);
+        TIM_Cmd(TIM3, ENABLE);
+	}
 }
 
 /*******************************************************************************
